@@ -9,17 +9,21 @@ class Cliente extends Model
 {
     use HasFactory;
 
-    protected $table = 'clientes'; // Nome da tabela no banco de dados
-    protected $primaryKey = 'cliente_id'; // Se sua chave primária não for 'id'
+    /**
+     * Informa ao Laravel o nome da nossa tabela em português.
+     */
+    protected $table = 'clientes';
 
-    // CORREÇÃO: Define que o modelo não usa as colunas created_at e updated_at
-    // porque elas não existem na sua tabela 'clientes'.
-    public $timestamps = false;
-
-    // Campos que podem ser preenchidos via atribuição em massa (mass assignment)
+    /**
+     * Define os campos que podem ser preenchidos em massa.
+     */
     protected $fillable = [
-        'nome_completo',
+        'nome',
         'telefone',
         'email',
     ];
+
+        public function agendamentos(){
+            return $this->hasMany(Agendamento::class, 'cliente_id');
+        }
 }

@@ -2,69 +2,135 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Agendamento;
+use App\Models\Cliente;
+use App\Models\Servico;
 use Illuminate\Http\Request;
-use App\Models\Cliente; // Importa o Model Cliente
-use App\Models\TiposCorte; // Importa o Model TiposCorte
-use App\Models\Agendamento; // Importa o Model Agendamento
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class AgendamentoController extends Controller
 {
     /**
-     * Exibe o formulário para agendar um corte.
-     *
-     * @return \Illuminate\View\View
+     * Mostra a lista de agendamentos (faremos a view depois)
+     */
+    public function index()
+    {
+        // Busca agendamentos, carregando os dados do cliente e dos serviços junto
+        $agendamentos = Agendamento::with(['cliente', 'servicos'])->orderBy('data')->orderBy('hora')->get();
+        return view('agendamentos_index', ['agendamentos' => $agendamentos]);
+    }
+
+    /**
+     * Mostra o formulário para criar um novo agendamento.
      */
     public function create()
     {
-        // Busca todos os clientes e tipos de corte para preencher os dropdowns do formulário
-        $clientes = Cliente::orderBy('nome_completo')->get(); // Ordena por nome
-        $tiposCorte = TiposCorte::orderBy('nome_corte')->get(); // Ordena por nome do corte
+        // Para montar o formulário, precisamos de todos os clientes e serviços
+        $clientes = Cliente::orderBy('nome')->get();
+        $servicos = Servico::orderBy('nome')->get();
 
-        // Passa os dados para a view
-        return view('agendamentos.cadastro', compact('clientes', 'tiposCorte'));
+        return view('agendamentos_create', compact('clientes', 'servicos'));
     }
 
     /**
      * Armazena um novo agendamento no banco de dados.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        // 1. Validação dos dados do formulário
-        $request->validate([
-            'cliente_id' => 'required|exists:clientes,cliente_id', // Garante que o cliente_id existe na tabela clientes
-            'corte_id' => 'required|exists:tiposcorte,corte_id',  // Garante que o corte_id existe na tabela tiposcorte
-            'data_agendamento' => 'required|date|after_or_equal:today', // Data válida e não pode ser no passado
-            'hora_agendamento' => 'required|date_format:H:i', // Formato de hora HH:MM
-        ], [
-            'cliente_id.required' => 'Por favor, selecione um cliente.',
-            'cliente_id.exists' => 'O cliente selecionado não é válido.',
-            'corte_id.required' => 'Por favor, selecione um serviço.',
-            'corte_id.exists' => 'O serviço selecionado não é válido.',
-            'data_agendamento.required' => 'O campo data é obrigatório.',
-            'data_agendamento.date' => 'O campo data não é uma data válida.',
-            'data_agendamento.after_or_equal' => 'A data do agendamento não pode ser no passado.',
-            'hora_agendamento.required' => 'O campo hora é obrigatório.',
-            'hora_agendamento.date_format' => 'O campo hora deve estar no formato HH:MM.',
+        // Validação dos dados
+        $regras = [
+            'cliente_id' => 'required|exists:clientes,id',
+            'data' => 'required|date',
+            'hora' => 'required',
+            'servicos' => 'required|array|min:1'
+        ];
+
+        // Adiciona uma regra de validação customizada para evitar duplicidade
+        $regras['cliente_id'] = [
+            'required',
+            'exists:clientes,id',
+            Rule::unique('agendamentos')->where(function ($query) use ($request) {
+                return $query->where('data', $request->data)
+                             ->where('hora', $request->hora);
+            })
+        ];
+
+        $mensagens = [
+            'cliente_id.unique' => 'Este cliente já possui um agendamento neste mesmo dia e horário.',
+            'servicos.required' => 'Selecione pelo menos um serviço.'
+        ];
+
+        $request->validate($regras, $mensagens);
+
+        // 1. Cria o agendamento principal
+        $agendamento = Agendamento::create([
+            'cliente_id' => $request->cliente_id,
+            'data' => $request->data,
+            'hora' => $request->hora,
         ]);
 
-        // 2. Criação do Agendamento usando o Model Eloquent
-        try {
-            Agendamento::create([
-                'cliente_id' => $request->cliente_id,
-                'corte_id' => $request->corte_id,
-                'data_agendamento' => $request->data_agendamento,
-                'hora_agendamento' => $request->hora_agendamento,
-            ]);
+        // 2. Anexa os serviços ao agendamento na tabela pivot
+        $agendamento->servicos()->attach($request->servicos);
 
-            // 3. Redireciona com mensagem de sucesso
-            return redirect()->route('agendamentos.create')->with('success', 'Agendamento realizado com sucesso!');
+        return redirect()->route('agendamentos.index')
+                         ->with('sucesso', 'Agendamento realizado com sucesso!');
+    }
 
-        } catch (\Exception $e) {
-            // Em caso de erro, redireciona de volta com mensagem de erro
-            return redirect()->back()->withInput()->with('error', 'Erro ao agendar: ' . $e->getMessage());
-        }
+    public function destroy(agendamento $agendamento){
+        $agendamento->delete();
+
+        return redirect()->route('agendamentos.index')
+                         ->with('sucesso', 'Agendamento cancelado com sucesso!');
+    }
+
+    public function limpar(){
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('agendamento_servico')->truncate();
+        DB::table('agendamentos')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        return redirect()->route('agendamentos.index')
+                         ->with('sucesso', 'Todos os agendamentos foram removidos com sucesso!');
+    }
+
+    public function edit(Agendamento $agendamento){
+        $clientes = Cliente::orderBy('nome')->get();
+        $servicos = Servico::orderBy('nome')->get();
+
+        return view('agendamentos_edit', compact('agendamento', 'clientes', 'servicos'));
+    }
+
+
+    public function update(Request $request, Agendamento $agendamento){
+        $regras = [
+            'cliente_id' => 'required/exists:clients,id',
+            'data' => 'required|date',
+            'hora' => 'required',
+            'servicos' => 'required|array|min:1'
+        ];
+
+        $regras['cliente_id'] = [
+            'required',
+            'exists:clientes,id',
+            Rule::unique('agendamentos')->ignore($agendamento->id)->where(function ($query) use ($request){
+                return $query->where('data', $request->data)
+                             ->where('hora', $request->hora);
+            })
+        ];
+
+        $mensagens = [
+            'cliente_id.unique' => 'Este cliente já possui um agendamento neste mesmo dia e horário.',
+            'servicos.required' => 'Selecione pelo menos um serviço.'
+        ];
+
+        $request->validate($regras, $mensagens);
+
+        $agendamento->update($request->only(['cliente_id', 'data', 'hora']));
+
+        $agendamento->servicos()->sync($request->servicos);
+
+        return redirect()->route('agendamentos.index')
+                         ->with('sucesso', 'Agendamento atualizado com sucesso!');
     }
 }

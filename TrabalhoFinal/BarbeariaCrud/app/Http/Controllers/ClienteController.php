@@ -3,83 +3,61 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Cliente;
-use Illuminate\Validation\ValidationException; // Importe esta classe para capturar erros de validação
+use App\Models\Cliente; // Certifique-se de que o Model Cliente está sendo importado
 
 class ClienteController extends Controller
 {
     /**
-     * Exibe o formulário para cadastrar um novo cliente.
-     *
-     * @return \Illuminate\View\View
+     * Exibe a lista de clientes.
+     * Este método é chamado pela rota 'clientes.index'.
+     */
+    public function index()
+    {
+        // Busca todos os clientes do banco, ordenados por nome
+        $clientes = Cliente::orderBy('nome')->get();
+        
+        // Carrega a view da lista e envia a variável $clientes para ela
+        return view('clientes_index', ['clientes' => $clientes]);
+    }
+
+    /**
+     * Mostra o formulário para criar um novo cliente.
+     * Este método é chamado pela rota 'clientes.create'.
      */
     public function create()
     {
-        return view('barbearia.cadastro'); // Aponta para a view 'resources/views/clientes/cadastro.blade.php'
+        // Apenas carrega a view do formulário de criação
+        return view('clientes_create');
     }
 
     /**
      * Armazena um novo cliente no banco de dados.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+     * Este método é chamado pela rota 'clientes.store' quando o formulário é enviado.
      */
     public function store(Request $request)
     {
-        try {
-            // 1. Validação dos dados do formulário
-            // Adicionado 'unique:clientes,telefone' para verificar unicidade do telefone
-            $validatedData = $request->validate([
-                'nome_completo' => 'required|string|max:255',
-                'telefone' => 'nullable|string|max:20|unique:clientes,telefone', // 'unique:tabela,coluna'
-                'email' => 'nullable|email|max:255|unique:clientes,email',
-            ], [
-                'nome_completo.required' => 'O nome completo é obrigatório.',
-                'nome_completo.string' => 'O nome completo deve ser um texto.',
-                'nome_completo.max' => 'O nome completo não pode ter mais de :max caracteres.',
-                'telefone.string' => 'O telefone deve ser um texto.',
-                'telefone.max' => 'O telefone não pode ter mais de :max caracteres.',
-                'telefone.unique' => 'Este telefone já está cadastrado.',
-                'email.email' => 'Por favor, insira um endereço de e-mail válido.',
-                'email.max' => 'O e-mail não pode ter mais de :max caracteres.',
-                'email.unique' => 'Este e-mail já está cadastrado.',
-            ]);
+        // 1. A validação continua a mesma. Se falhar para um pedido AJAX,
+        // o Laravel automaticamente retorna um JSON com os erros.
+        $dadosValidados = $request->validate([
+            'nome' => 'required|string|max:255',
+            'telefone' => 'required|string|unique:clientes,telefone',
+            'email' => 'nullable|email|unique:clientes,email',
+        ]);
 
-            // 2. Cria um novo cliente usando o Model Eloquent
-            Cliente::create($validatedData);
+        // 2. Criação do cliente no banco de dados
+        $cliente = Cliente::create($dadosValidados);
 
-            // 3. Resposta para requisições AJAX ou redirecionamento para requisições normais
-            if ($request->ajax()) {
-                return response()->json(['success' => 'Cliente cadastrado com sucesso!'], 200);
-            } else {
-                return redirect()->route('clientes.create')->with('success', 'Cliente cadastrado com sucesso!');
-            }
-
-        } catch (ValidationException $e) {
-            // Captura erros de validação e retorna JSON se for AJAX
-            if ($request->ajax()) {
-                return response()->json(['errors' => $e->errors()], 422); // Status 422 Unprocessable Entity
-            } else {
-                return redirect()->back()->withInput()->withErrors($e->errors());
-            }
-        } catch (\Exception $e) {
-            // Captura outros erros e retorna JSON se for AJAX
-            if ($request->ajax()) {
-                return response()->json(['error' => 'Erro ao cadastrar cliente: ' . $e->getMessage()], 500); // Status 500 Internal Server Error
-            } else {
-                return redirect()->back()->withInput()->with('error', 'Erro ao cadastrar cliente: ' . $e->getMessage());
-            }
+        // 3. Verifica se a requisição espera uma resposta JSON (AJAX)
+        if ($request->wantsJson()) {
+            // Se for AJAX, retorna uma resposta JSON de sucesso.
+            return response()->json([
+                'mensagem' => 'Cliente cadastrado com sucesso!',
+                'cliente' => $cliente
+            ], 201); // 201 Created
         }
-    }
 
-    /**
-     * Exibe uma lista de clientes.
-     *
-     * @return \Illuminate\View\View
-     */
-    public function index()
-    {
-        $clientes = Cliente::all(); // Busca todos os clientes do banco de dados
-        return view('clientes.index', compact('clientes')); // Passa os clientes para a view
+        // 4. Se não for AJAX, mantém o comportamento antigo de redirecionar
+        return redirect()->route('clientes.index')
+                         ->with('sucesso', 'Cliente cadastrado com sucesso!');
     }
 }

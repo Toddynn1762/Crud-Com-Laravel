@@ -1,33 +1,39 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ClienteController;
-use App\Http\Controllers\AgendamentoController; // Certifique-se de importar este Controller também
+use App\Http\Controllers\ClienteController; // <-- Importe o Controller
+use App\Http\Controllers\AgendamentoController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
 */
 
-// Rota para a página inicial da Barbearia (mantida apenas esta)
 Route::get('/', function () {
-    return view('barbearia.home'); // Aponta para a view 'resources/views/barbearia/home.blade.php'
-})->name('home'); // Dando um nome para a rota da página inicial
+    return view('index');
+});
 
-// Rotas de Clientes
-Route::get('/clientes/cadastrar', [ClienteController::class, 'create'])->name('clientes.create');
-Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
-// Rota para listar clientes
+// --- ROTAS DE CLIENTES ---
+
+// Rota para exibir a lista de todos os clientes
 Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
 
-// Rotas de Agendamentos (você precisará criar o AgendamentoController e os métodos)
-Route::get('/agendamentos/cadastrar', [AgendamentoController::class, 'create'])->name('agendamentos.create');
+// Rota para exibir o formulário de cadastro de um novo cliente
+Route::get('/clientes/cadastrar', [ClienteController::class, 'create'])->name('clientes.create');
+
+// Rota para processar o armazenamento do novo cliente (quando o formulário for enviado)
+Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+
+// --- ROTAS DE AGENDAMENTOS ---
+Route::get('/agendamentos', [AgendamentoController::class, 'index'])->name('agendamentos.index');
+Route::get('/agendamentos/agendar', [AgendamentoController::class, 'create'])->name('agendamentos.create');
 Route::post('/agendamentos', [AgendamentoController::class, 'store'])->name('agendamentos.store');
-// Opcional: Rota para listar agendamentos
-// Route::get('/agendamentos', [AgendamentoController::class, 'index'])->name('agendamentos.index');
+// Rota para deletar UM agendamento específico
+Route::delete('/agendamentos/{agendamento}', [AgendamentoController::class, 'destroy'])->name('agendamentos.destroy');
+// Rota para deletar TODOS os agendamentos
+Route::delete('/agendamentos', [AgendamentoController::class, 'limpar'])->name('agendamentos.limpar');
+
+//Rota do formulario de edicao de um agnedamento
+Route::get('/agendamentos/{agendamento}/editar', [AgendamentoController::class, 'edit'])->name('agendamentos.edit');
+Route::put('/agendamentos/{agendamento}', [AgendamentoController::class, 'update'])->name('agendamentos.update');
