@@ -18,7 +18,7 @@
         @csrf
 
         <div class="mb-3">
-            <label for="cliente_id" class="form-label text-white">Cliente</label>
+            <label for="cliente_id" class="form-label text-white" >Cliente</label>
             <select class="form-select" id="cliente_id" name="cliente_id" required>
                 <option value="">Selecione um cliente...</option>
                 @foreach($clientes as $cliente)

@@ -35,18 +35,27 @@
     li { margin: 15px 0; }
     a {
       display: inline-block;
-      padding: 12px 25px;
-      background-color: gold;
-      color: black;
+      padding: 15px 25px; 
       font-weight: bold;
       text-decoration: none;
       border-radius: 5px;
       font-size: 18px;
       box-shadow: 0px 2px 6px rgba(0,0,0,0.5);
-      transition: background-color 0.3s ease;
+      transition: all 0.3s ease;
+      width: 300px;
+      text-align: center;
+
+      background-color: rgba(10, 10, 10, 0.5); 
+      backdrop-filter: blur(5px); 
+      -webkit-backdrop-filter: blur(5px); 
+      color: #f5f5f5; 
+      border: 1px solid rgba(255, 255, 255, 0.5);
     }
+    
     img.logo{ width: 150px; margin-bottom: 20px; }
-    a:hover { background-color: #d4af37; }
+    a:hover { background-color: rgba(10, 10, 10, 0.7); 
+      border-color: white; 
+      transform: translateY(-2px) }
   </style>
 </head>
 <body>
