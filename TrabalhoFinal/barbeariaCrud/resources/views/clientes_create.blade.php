@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
-                // CORREÇÃO: Pega o token da meta tag que está no layout
+                // Pega o token da meta tag que está no layout
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: formData
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(error => {
             let errorMessages = '<div class="alert alert-danger"><ul>';
             if (error.errors) {
-                // CORREÇÃO: Loop para exibir corretamente os erros de validação
+                // Loop para exibir corretamente os erros de validação
                 for (const key in error.errors) {
                     errorMessages += `<li>${error.errors[key][0]}</li>`;
                 }
